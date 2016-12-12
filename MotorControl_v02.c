@@ -1,9 +1,13 @@
+
+//VERSION 2
+
 unsigned short kp, kp_aux, oldstate = 99;
 int ext = 0;
 int duty_cicle = 0;
 int number_of_digits = 0; //Porque o duty_cicle tem no max 3 digitos
 char duty_aux[10];
 char *string = "Duty: ";
+
 
 
 // Keypad module connections
@@ -24,6 +28,7 @@ sbit LCD_D5_Direction at TRISB5_bit;
 sbit LCD_D6_Direction at TRISB6_bit;
 sbit LCD_D7_Direction at TRISB7_bit;
 // End LCD module connections
+
 
 void keypad_receive(){
         PORTC.F5=1;
@@ -103,213 +108,144 @@ void keypad_receive(){
         }
 }
 
+void main(){
+	int i;
+	//cnt = 0; // Reset counter
+	CMCON=0x07;
+	ADCON1=0x06;
+	TRISA = 0;
+	PORTA = 0;
+	TRISC = 0;
+	TRISB = 0x03;
+	PWM1_Init(2000);
+	kp = 0;
+	Keypad_Init(); // Initialize Keypad
+	Lcd_Init(); // Initialize Lcd
+	Lcd_Cmd(_LCD_CLEAR); // Clear display
+	Lcd_Cmd(_LCD_CURSOR_OFF); // Cursor off
+	Lcd_Out(1, 3, "MOTOR CONTROL");
+	Lcd_Out(2, 2, "__Dan & Lobo__");
+	delay_ms(1000);
+	Lcd_Cmd(_LCD_CLEAR); // Clear displays
+	delay_ms(20);
+	Lcd_Out(1, 3, "### MENU ###");
+	delay_ms(1000);
+	//Lcd_Cmd(_LCD_CLEAR);
+	//delay_ms(20);
+	Lcd_Out(1, 1, "1. Clockwise");
+	Lcd_Out(2, 1, "2. A_Clockwise");	
+	do{
+		//kp = Keypad_Key_Press(); // Store key code in kp variable
+		kp = Keypad_Key_Click(); // Store key code in kp variable
+		if(kp == 1 || kp == 2) ext = 1;
+	}while (!ext);
+	
+	if(kp == 1){
+		kp = 0;			
+		Lcd_Out(1, 1, "Clockwise set!");
+		delay_ms(500);
+		PORTA.F0 = 1;
+	}
+	else if(kp == 2){
+		kp = 0;
+		Lcd_Out(1, 1, "A_Clockwise set!");
+		delay_ms(1000);
+		PORTA.F1 = 1;
+	}
+	else{}
+	PWM1_Start();
+	Lcd_Cmd(_LCD_CLEAR);
+	Lcd_Out(1, 1, "Duty setting: ");
+	do{
+		
+		kp = 0; // Reset key code variable
+		kp_aux = 99;
+		// Wait for key to be pressed and released
 
-void menu(){
-        kp = 0;
-        Keypad_Init(); // Initialize Keypad
-        Lcd_Init(); // Initialize Lcd
-        Lcd_Cmd(_LCD_CLEAR); // Clear display
-        Lcd_Cmd(_LCD_CURSOR_OFF); // Cursor off
-        Lcd_Out(1, 3, "MOTOR CONTROL");
-        Lcd_Out(2, 2, "__Dan & Lobo__");
-        delay_ms(2000);
-        Lcd_Cmd(_LCD_CLEAR); // Clear display
-        Lcd_Out(1, 3, "### MENU ###");
-        delay_ms(1000);
-        Lcd_Cmd(_LCD_CLEAR);
-        delay_ms(20);
+		keypad_receive();
+	
+		if(oldstate != 99){
+			if(number_of_digits < 4){
+				if(kp_aux == 11){ // "#" significa "enter"
+					PWM1_Set_Duty(duty_cicle);
+					WordToStr(duty_cicle, duty_aux);
+					Lcd_Out(2, 10, duty_aux);
+					delay_ms(500);
+					oldstate = 99;
+					kp = 0;
+					kp_aux = 99;
+					duty_cicle = 0; //valor final a ir pro LCD
+				}
+				else if(kp_aux == 10){ //limpa tudo
+					oldstate = 99;
+					kp = 0;
+					kp_aux = 99;
+					duty_cicle = 0; //valor final a ir pro LCD
+					WordToStr(duty_cicle, duty_aux);
+					Lcd_Out(2, 10, duty_aux);
+				}
+				else{
+					duty_cicle = (duty_cicle*10) + kp_aux;
+					if(duty_cicle < 256){
+						WordToStr(duty_cicle, duty_aux);
+						Lcd_Out(2, 10, duty_aux); //VALOR ATUALIZADO
+					}
+					else{
+							oldstate = 99;
+							kp = 0;
+							kp_aux = 99;
+							duty_cicle = 0; //valor final a ir pro LCD
+							Lcd_Out(1, 1, "DUTY <= 255"); //VALOR ATUALIZADO
+							delay_ms(1000);
+							Lcd_Out(1, 1, "Duty setting: ");
+							
+					}
+				}
+			}
+			else{
+				oldstate = 99;
+				kp = 0;
+				kp_aux = 99;
+				duty_cicle = 0; //valor final a ir pro LCD
+				Lcd_Out(1,2, "Max 3 digitos");
+				delay_ms(1000);
+				Lcd_Out(1, 1, "Duty setting: ");
+				WordToStr(duty_cicle, duty_aux);
+				Lcd_Out(2, 10, duty_aux); //VALOR ATUALIZADO
+			}
+		}
+		else{                                         //primeiro digito
+			if(kp_aux == 11){  // # -> enter
+					duty_cicle = 0; //pro LCD
+					oldstate = 99;
+					kp = 0;
+					kp_aux = 99;
+			}
+			else if(kp_aux == 10){
+					oldstate = 99;
+					kp = 0;
+					kp_aux = 99;
+					duty_cicle = 0; //valor final a ir pro LCD
+					WordToStr(duty_cicle, duty_aux);
+					Lcd_Out(2, 10, duty_aux);
+			}
+			else{
+					duty_cicle = kp_aux;
+					WordToStr(duty_cicle, duty_aux);
+					Lcd_Out(2, 10, duty_aux); //VALOR ATUALIZADO
+			}
+		}
+		oldstate = kp_aux;
 
+	}while(1);
 }
-
-void menu_evaluate(){
-        Lcd_Cmd(_LCD_CLEAR);
-        delay_ms(20);
-        Lcd_Out(1, 1, "1. Set Speed");
-        Lcd_Out(2, 1, "2. Set Direction");
-        //delay_ms(1000);
-        do{
-                //kp = Keypad_Key_Press(); // Store key code in kp variable
-                PORTC.F7=1;
-                kp = Keypad_Key_Click(); // Store key code in kp variable
-                PORTC.F7=0;
-                if(kp == 1 || kp == 2) ext = 1;
-        }while (!ext);
-
-
-
-        switch(kp){
-        case 1:
-                kp = 0;
-                Lcd_Cmd(_LCD_CLEAR);
-                delay_ms(20);
-                PORTA.F0 = 1;
-                //PORTA.F1 = 0;
-                Lcd_Out(1, 1, "Clockwise..."); //PORTB.F0 = 1, PORTB.F1 = 0 DEFAULT
-                delay_ms(1000);
-                Lcd_Cmd(_LCD_CLEAR);
-                delay_ms(20);
-                break;
-        case 2:
-                ext = 0;
-                kp = 0;
-                Lcd_Cmd(_LCD_CLEAR);
-                delay_ms(20);
-                Lcd_Out(1, 1, "1. Clockwise");
-                Lcd_Out(2, 1, "2. A_Clockwise");
-
-                do{
-                        //kp = Keypad_Key_Press(); // Store key code in kp variable
-                         PORTC.F6=1;
-                        kp = Keypad_Key_Click(); // Store key code in kp variable
-                         PORTC.F6=0;
-                        if(kp == 1 || kp == 2) ext = 1;
-                }while (!ext);
-
-                switch(kp){
-                        case 1:
-                                kp = 0;
-                                Lcd_Cmd(_LCD_CLEAR);
-                                delay_ms(20);
-                                Lcd_Out(1, 1, "Clockwise set!");
-                                delay_ms(500);
-                                Lcd_Cmd(_LCD_CLEAR);
-                                delay_ms(20);
-                                PORTA.F0 = 1;
-                                //PORTA.F1 = 0;
-                                delay_ms(500);
-                                break;
-                        case 2:
-                                kp = 0;
-                                Lcd_Cmd(_LCD_CLEAR);
-                                delay_ms(20);
-                                Lcd_Out(1, 1, "A_Clockwise set!");
-                                delay_ms(1000);
-                                Lcd_Cmd(_LCD_CLEAR);
-                                delay_ms(20);
-                                //PORTA.F0 = 0;
-                                PORTA.F1 = 1;
-                                delay_ms(1000);
-                                break;
-                }
-        }
-}
-
-void main()
-{
-        int i;
-        //cnt = 0; // Reset counter
-        CMCON=0x07;
-        ADCON1=0x06;
-        TRISA = 0;
-        PORTA = 0;
-        TRISC = 0;
-        TRISB = 0x03;
-        PWM1_Init(2000);
-        menu();
-        menu_evaluate();
-        Lcd_Cmd(_LCD_CLEAR);
-        delay_ms(20);
-        PWM1_Start();
-        do
-        {
-                kp = 0; // Reset key code variable
-                kp_aux = 99;
-                // Wait for key to be pressed and released
-
-                keypad_receive();
-
-                if(oldstate != 99){ //ou seja, nÃ£o Ã© a primeira vez que se digita
-                        if(number_of_digits < 4){
-                                if(kp_aux == 11){ // "#" significa "enter"
-                                        PWM1_Set_Duty(duty_cicle);
-                                        Lcd_Out(2, 1, "Duty: ");
-                                        WordToStr(duty_cicle, duty_aux);
-                                        Lcd_Out(2, 10, duty_aux);
-                                        delay_ms(500);
-                                        oldstate = 99;
-                                        kp = 0;
-                                        kp_aux = 99;
-                                        duty_cicle = 0; //valor final a ir pro LCD
-                                        Lcd_Cmd(_LCD_CLEAR); // Clear display
-                                        delay_ms(20);
-                                }
-                                else if(kp_aux == 10){ //limpa tudo
-                                        oldstate = 99;
-                                        kp = 0;
-                                        kp_aux = 99;
-                                        duty_cicle = 0; //valor final a ir pro LCD
-                                        Lcd_Cmd(_LCD_CLEAR); // Clear display
-                                        delay_ms(20);
-                                        WordToStr(duty_cicle, duty_aux);
-                                        Lcd_Out(2, 1, "Duty: ");
-                                        Lcd_Out(2, 10, duty_aux);
-
-                                }
-                                else{
-                                        Lcd_Cmd(_LCD_CLEAR); // Clear display
-                                        delay_ms(20);
-                                        duty_cicle = (duty_cicle*10) + kp_aux;
-                                        if(duty_cicle < 256){
-                                                WordToStr(duty_cicle, duty_aux);
-                                                Lcd_Cmd(_LCD_CLEAR); // Clear display
-                                                delay_ms(20);
-                                                Lcd_Out(2, 1, "Duty: ");
-                                                Lcd_Out(2, 10, duty_aux); //VALOR ATUALIZADO
-                                        }
-                                        else{
-                                                oldstate = 99;
-                                                kp = 0;
-                                                kp_aux = 99;
-                                                duty_cicle = 0; //valor final a ir pro LCD
-                                                Lcd_Cmd(_LCD_CLEAR); // Clear display
-                                                delay_ms(20);
-                                                Lcd_Out(2, 1, "DUTY <= 255"); //VALOR ATUALIZADO
-                                                delay_ms(1000);
-                                        }
-                                }
-                        }
-                        else{
-                                oldstate = 99;
-                                kp = 0;
-                                kp_aux = 99;
-                                duty_cicle = 0; //valor final a ir pro LCD
-                                Lcd_Cmd(_LCD_CLEAR); // Clear display
-                                delay_ms(20);
-                                Lcd_Out(2,2, "Max 3 digitos");
-                                delay_ms(1000);
-                        }
-                }
-                else{                                         //primeiro digito
-                        Lcd_Cmd(_LCD_CLEAR); // Clear display
-                        delay_ms(20);
-                        if(kp_aux == 11){  // # -> enter
-                                duty_cicle = 0; //pro LCD
-                                oldstate = 99;
-                                kp = 0;
-                                kp_aux = 99;
-                        }
-                        else if(kp_aux == 10){
-                                oldstate = 99;
-                                kp = 0;
-                                kp_aux = 99;
-                                duty_cicle = 0; //valor final a ir pro LCD
-                                Lcd_Cmd(_LCD_CLEAR); // Clear display
-                                delay_ms(20);
-                                WordToStr(duty_cicle, duty_aux);
-                                Lcd_Out(2, 1, "Duty: ");
-                                Lcd_Out(2, 10, duty_aux);
-                        }
-                        else{
-                                duty_cicle = kp_aux;
-                                WordToStr(duty_cicle, duty_aux);
-                                Lcd_Cmd(_LCD_CLEAR); // Clear display
-                                delay_ms(20);
-                                Lcd_Out(2, 1, string);
-                                Lcd_Out(2, 10, duty_aux); //VALOR ATUALIZADO
-                        }
-                }
-
-                oldstate = kp_aux;
-
-        } while (1);
-}
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
