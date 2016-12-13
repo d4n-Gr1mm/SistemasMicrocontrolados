@@ -7,6 +7,7 @@ int duty_cicle = 0;
 int number_of_digits = 0; //Porque o duty_cicle tem no max 3 digitos
 char duty_aux[10];
 char *string = "Duty: ";
+int sentido = 0;
 
 
 
@@ -141,12 +142,14 @@ void main(){
 	}while (!ext);
 	
 	if(kp == 1){
+		sentido = 1;
 		kp = 0;			
 		Lcd_Out(1, 1, "Clockwise set!");
 		delay_ms(500);
 		PORTA.F0 = 1;
 	}
 	else if(kp == 2){
+		sentido = 2;
 		kp = 0;
 		Lcd_Out(1, 1, "A_Clockwise set!");
 		delay_ms(1000);
@@ -156,6 +159,7 @@ void main(){
 	PWM1_Start();
 	Lcd_Cmd(_LCD_CLEAR);
 	Lcd_Out(1, 1, "Duty setting: ");
+	
 	do{
 		
 		kp = 0; // Reset key code variable
@@ -170,11 +174,14 @@ void main(){
 					PWM1_Set_Duty(duty_cicle);
 					WordToStr(duty_cicle, duty_aux);
 					Lcd_Out(2, 10, duty_aux);
-					delay_ms(500);
+					delay_ms(2000);
 					oldstate = 99;
 					kp = 0;
 					kp_aux = 99;
 					duty_cicle = 0; //valor final a ir pro LCD
+					PWM1_Set_Duty(duty_cicle);
+					WordToStr(duty_cicle, duty_aux);
+					Lcd_Out(2, 10, duty_aux);
 				}
 				else if(kp_aux == 10){ //limpa tudo
 					oldstate = 99;
@@ -190,11 +197,36 @@ void main(){
 						WordToStr(duty_cicle, duty_aux);
 						Lcd_Out(2, 10, duty_aux); //VALOR ATUALIZADO
 					}
+					else if(duty_cicle == 256){
+						if(sentido == 1){
+							duty_cicle = 0;
+							PWM1_Set_Duty(duty_cicle);
+							PORTA.F0 = 0;
+							PORTA.F1 = 1;
+							Lcd_Out(1, 1, "A_Clockwise set!");
+							oldstate = 99;
+							kp = 0;
+							kp_aux = 99;
+						}
+						else{
+							duty_cicle = 0;
+							PWM1_Set_Duty(duty_cicle);
+							PORTA.F1 = 0;
+							PORTA.F0 = 1;
+							Lcd_Out(1, 1, "Clockwise set!");
+							oldstate = 99;
+							kp = 0;
+							kp_aux = 99;
+						}
+							
+					}
 					else{
 							oldstate = 99;
 							kp = 0;
 							kp_aux = 99;
 							duty_cicle = 0; //valor final a ir pro LCD
+							Lcd_Cmd(_LCD_CLEAR);
+							number_of_digits = 0;
 							Lcd_Out(1, 1, "DUTY <= 255"); //VALOR ATUALIZADO
 							delay_ms(1000);
 							Lcd_Out(1, 1, "Duty setting: ");
